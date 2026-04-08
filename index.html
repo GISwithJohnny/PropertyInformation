@@ -490,11 +490,36 @@ function doSearch() {
       var geom = json.features[0].geometry;
       var sr   = json.spatialReference || { wkid: 4326 };
 
-      // Street View — use the normalized address string so Google geocodes it reliably
-      var svAddr = encodeURIComponent(normalized + ', Chattanooga, TN');
-      var svUrl  = 'https://www.google.com/maps?q=' + svAddr + '&layer=c&output=embed';
-      document.getElementById('svFrame').src = svUrl;
-      document.getElementById('svWrap').style.display = 'block';
+      // Street View — geocode via Nominatim to get lat/lng for cbll parameter
+      var svWrap = document.getElementById('svWrap');
+      var svFrame = document.getElementById('svFrame');
+      svWrap.style.display = 'block';
+      svFrame.src = '';  // clear while geocoding
+
+      var nominatimUrl = 'https://nominatim.openstreetmap.org/search'
+        + '?q=' + encodeURIComponent(normalized + ', Chattanooga, TN, USA')
+        + '&format=json&limit=1';
+
+      fetch(nominatimUrl, { headers: { 'Accept-Language': 'en' } })
+        .then(function(r) { return r.json(); })
+        .then(function(results) {
+          if (results && results.length > 0) {
+            var lat = parseFloat(results[0].lat);
+            var lng = parseFloat(results[0].lon);
+            svFrame.src = 'https://www.google.com/maps?cbll=' + lat + ',' + lng
+              + '&layer=c&output=embed';
+          } else {
+            // Fallback: show map view if no geocode result
+            svFrame.src = 'https://www.google.com/maps?q='
+              + encodeURIComponent(normalized + ', Chattanooga, TN')
+              + '&output=embed';
+          }
+        })
+        .catch(function() {
+          svFrame.src = 'https://www.google.com/maps?q='
+            + encodeURIComponent(normalized + ', Chattanooga, TN')
+            + '&output=embed';
+        });
 
       // Show loading placeholders for each service
       renderCards(POLYGON_LAYERS.map(function(l) {
