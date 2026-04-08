@@ -224,6 +224,21 @@ var POLYGON_LAYERS = [
     fields: ['Recycle_Day_Int', 'Anchor_Date'],
     label: 'Next recycling pickup',
     icon:  '♻️'
+  },
+  {
+    url:    'https://pwgis.chattanooga.gov/server/rest/services/Administrative_Areas/CouncilDistricts/FeatureServer/0',
+    type:   'multi',
+    fields: ['COUNCIL', 'REP_COUNCIL'],
+    label:  'City council district',
+    icon:   '🏛️',
+    format: function(attr) {
+      var district = attr['COUNCIL']     || '';
+      var rep      = attr['REP_COUNCIL'] || '';
+      if (district && rep) return 'District ' + district + ' — ' + rep;
+      if (district)        return 'District ' + district;
+      if (rep)             return rep;
+      return 'Not found';
+    }
   }
 ];
 // ─────────────────────────────────────────────────────────────────────────────
@@ -460,7 +475,7 @@ function doSearch() {
           spatialReference: sr
         });
 
-        var outFields = layer.type === 'biweekly'
+        var outFields = (layer.type === 'biweekly' || layer.type === 'multi')
           ? layer.fields.join(',')
           : layer.field;
 
@@ -495,6 +510,8 @@ function doSearch() {
                 value = 'Data unavailable';
                 state = 'error';
               }
+            } else if (layer.type === 'multi') {
+              value = layer.format(attr);
             } else {
               value = attr[layer.field] || 'Not found';
             }
