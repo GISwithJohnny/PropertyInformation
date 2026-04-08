@@ -250,28 +250,14 @@ var POLYGON_LAYERS = [
     }
   },
   {
-    url:   'https://services2.arcgis.com/OIAIimblRxPs0xxc/arcgis/rest/services/School_Data/FeatureServer/1',
-    type:  'simple',
-    field: 'FullName',
-    label: 'Elementary school',
-    icon:  '🎒',
-    format: function(val) { return val || 'Not found'; }
-  },
-  {
-    url:   'https://services2.arcgis.com/OIAIimblRxPs0xxc/arcgis/rest/services/School_Data/FeatureServer/2',
-    type:  'simple',
-    field: 'FullName',
-    label: 'Middle school',
-    icon:  '📚',
-    format: function(val) { return val || 'Not found'; }
-  },
-  {
-    url:   'https://services2.arcgis.com/OIAIimblRxPs0xxc/arcgis/rest/services/School_Data/FeatureServer/3',
-    type:  'simple',
-    field: 'FullName',
-    label: 'High school',
-    icon:  '🎓',
-    format: function(val) { return val || 'Not found'; }
+    type:  'schools',
+    label: 'School districts',
+    icon:  '🏫',
+    layers: [
+      { url: 'https://services2.arcgis.com/OIAIimblRxPs0xxc/arcgis/rest/services/School_Data/FeatureServer/1', level: 'Elementary' },
+      { url: 'https://services2.arcgis.com/OIAIimblRxPs0xxc/arcgis/rest/services/School_Data/FeatureServer/2', level: 'Middle' },
+      { url: 'https://services2.arcgis.com/OIAIimblRxPs0xxc/arcgis/rest/services/School_Data/FeatureServer/3', level: 'High' }
+    ]
   }
 ];
 // ─────────────────────────────────────────────────────────────────────────────
@@ -446,11 +432,16 @@ function renderCards(cards) {
   cards.forEach(function(c) {
     var div = document.createElement('div');
     div.className = 'info-card' + (c.state ? ' ' + c.state : '');
+    var valueHtml = c.multiline
+      ? c.value.split(' · ').map(function(s) {
+          return '<div class="info-card-value">' + s + '</div>';
+        }).join('')
+      : '<div class="info-card-value">' + c.value + '</div>';
     div.innerHTML =
       '<div class="info-card-icon">' + c.icon + '</div>' +
       '<div class="info-card-body">' +
         '<div class="info-card-label">' + c.label + '</div>' +
-        '<div class="info-card-value">' + c.value + '</div>' +
+        valueHtml +
       '</div>';
     container.appendChild(div);
   });
@@ -502,6 +493,45 @@ function doSearch() {
       var results = new Array(POLYGON_LAYERS.length);
       var pending = POLYGON_LAYERS.length;
 
+      // ── Schools: query three layers, combine into one card ────────────────────
+      POLYGON_LAYERS.forEach(function(layer, idx) {
+        if (layer.type !== 'schools') return;
+
+        var schoolResults = { Elementary: 'Not found', Middle: 'Not found', High: 'Not found' };
+        var schoolPending = layer.layers.length;
+
+        layer.layers.forEach(function(sl) {
+          var pointJson = JSON.stringify({ x: geom.x, y: geom.y, spatialReference: sr });
+          jsonp(sl.url + '/query', {
+            geometry:          pointJson,
+            geometryType:      'esriGeometryPoint',
+            spatialRel:        'esriSpatialRelIntersects',
+            outFields:         'SCHOOL',
+            returnGeometry:    'false',
+            resultRecordCount: '1'
+          }, function(err2, json2) {
+            if (!err2 && !json2.error && json2.features && json2.features.length > 0) {
+              schoolResults[sl.level] = json2.features[0].attributes['SCHOOL'] || 'Not found';
+            }
+            schoolPending--;
+            if (schoolPending === 0) {
+              results[idx] = {
+                icon:  layer.icon,
+                label: layer.label,
+                value: schoolResults.Elementary + ' (Elem) · ' +
+                       schoolResults.Middle      + ' (Mid) · ' +
+                       schoolResults.High        + ' (High)',
+                state: '',
+                multiline: true
+              };
+              pending--;
+              if (pending === 0) renderCards(results);
+            }
+          });
+        });
+      });
+      // ─────────────────────────────────────────────────────────────────────────
+
       POLYGON_LAYERS.forEach(function(layer, idx) {
         var pointJson = JSON.stringify({
           x: geom.x,
@@ -509,6 +539,10 @@ function doSearch() {
           spatialReference: sr
         });
 
+        if (layer.type === 'schools') {
+          // Schools handled separately below — skip normal flow
+          return;
+        }
         var outFields = (layer.type === 'biweekly' || layer.type === 'multi')
           ? layer.fields.join(',')
           : layer.field;
