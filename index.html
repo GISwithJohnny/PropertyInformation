@@ -254,9 +254,9 @@ var POLYGON_LAYERS = [
     label: 'School districts',
     icon:  '🏫',
     layers: [
-      { url: 'https://services2.arcgis.com/OIAIimblRxPs0xxc/arcgis/rest/services/School_Data/FeatureServer/1', level: 'Elementary' },
-      { url: 'https://services2.arcgis.com/OIAIimblRxPs0xxc/arcgis/rest/services/School_Data/FeatureServer/2', level: 'Middle' },
-      { url: 'https://services2.arcgis.com/OIAIimblRxPs0xxc/arcgis/rest/services/School_Data/FeatureServer/3', level: 'High' }
+      { url: 'https://services2.arcgis.com/OIAIimblRxPs0xxc/arcgis/rest/services/School_Data/FeatureServer/1', level: 'Elementary', field: 'SCHOOL' },
+      { url: 'https://services2.arcgis.com/OIAIimblRxPs0xxc/arcgis/rest/services/School_Data/FeatureServer/2', level: 'Middle',      field: 'NAME'   },
+      { url: 'https://services2.arcgis.com/OIAIimblRxPs0xxc/arcgis/rest/services/School_Data/FeatureServer/3', level: 'High',        field: 'NAME'   }
     ]
   }
 ];
@@ -501,33 +501,37 @@ function doSearch() {
         var schoolPending = layer.layers.length;
 
         layer.layers.forEach(function(sl) {
-          var pointJson = JSON.stringify({ x: geom.x, y: geom.y, spatialReference: sr });
-          jsonp(sl.url + '/query', {
-            geometry:          pointJson,
-            geometryType:      'esriGeometryPoint',
-            spatialRel:        'esriSpatialRelIntersects',
-            outFields:         'SCHOOL',
-            returnGeometry:    'false',
-            resultRecordCount: '1'
-          }, function(err2, json2) {
-            if (!err2 && !json2.error && json2.features && json2.features.length > 0) {
-              schoolResults[sl.level] = json2.features[0].attributes['SCHOOL'] || 'Not found';
-            }
-            schoolPending--;
-            if (schoolPending === 0) {
-              results[idx] = {
-                icon:  layer.icon,
-                label: layer.label,
-                value: schoolResults.Elementary + ' (Elem) · ' +
-                       schoolResults.Middle      + ' (Mid) · ' +
-                       schoolResults.High        + ' (High)',
-                state: '',
-                multiline: true
-              };
-              pending--;
-              if (pending === 0) renderCards(results);
-            }
-          });
+          // IIFE ensures sl, schoolResults, schoolPending, idx are
+          // correctly captured per-iteration in the async callback
+          (function(currentSl) {
+            var pointJson = JSON.stringify({ x: geom.x, y: geom.y, spatialReference: sr });
+            jsonp(currentSl.url + '/query', {
+              geometry:          pointJson,
+              geometryType:      'esriGeometryPoint',
+              spatialRel:        'esriSpatialRelIntersects',
+              outFields:         currentSl.field,
+              returnGeometry:    'false',
+              resultRecordCount: '1'
+            }, function(err2, json2) {
+              if (!err2 && !json2.error && json2.features && json2.features.length > 0) {
+                schoolResults[currentSl.level] = json2.features[0].attributes[currentSl.field] || 'Not found';
+              }
+              schoolPending--;
+              if (schoolPending === 0) {
+                results[idx] = {
+                  icon:  layer.icon,
+                  label: layer.label,
+                  value: schoolResults.Elementary + ' (Elem) · ' +
+                         schoolResults.Middle      + ' (Mid) · ' +
+                         schoolResults.High        + ' (High)',
+                  state: '',
+                  multiline: true
+                };
+                pending--;
+                if (pending === 0) renderCards(results);
+              }
+            });
+          })(sl);
         });
       });
       // ─────────────────────────────────────────────────────────────────────────
