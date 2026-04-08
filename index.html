@@ -490,13 +490,11 @@ function doSearch() {
       var geom = json.features[0].geometry;
       var sr   = json.spatialReference || { wkid: 4326 };
 
-      // Street View — geom is now in WGS84 (outSR=4326)
-      var lat = geom.y;
-      var lng = geom.x;
-      var svUrl = 'https://www.google.com/maps?q=&layer=c&cbll=' + lat + ',' + lng + '&output=embed';
-      var svWrap = document.getElementById('svWrap');
+      // Street View — use the normalized address string so Google geocodes it reliably
+      var svAddr = encodeURIComponent(normalized + ', Chattanooga, TN');
+      var svUrl  = 'https://www.google.com/maps?q=' + svAddr + '&layer=c&output=embed';
       document.getElementById('svFrame').src = svUrl;
-      svWrap.style.display = 'block';
+      document.getElementById('svWrap').style.display = 'block';
 
       // Show loading placeholders for each service
       renderCards(POLYGON_LAYERS.map(function(l) {
