@@ -297,19 +297,46 @@ function nextBiweeklyDate(recycleDay, anchorEpochMs) {
     ? candidate
     : new Date(candidate.getTime() + 7 * 86400000);
 
-  // Format result
+  // ── Holiday makeup logic ────────────────────────────────────────────────────
+  // If pickup falls on Christmas Day or Thanksgiving, service moves to
+  // the following Saturday of that same week.
+  var pickupYear  = nextPickup.getFullYear();
+  var pickupMonth = nextPickup.getMonth(); // 0-indexed
+  var pickupDate  = nextPickup.getDate();
+  var pickupDOW   = nextPickup.getDay();
+
+  // Christmas: December 25
+  var isChristmas = (pickupMonth === 11 && pickupDate === 25);
+
+  // Thanksgiving: 4th Thursday of November
+  // Find the first Thursday of November, then add 21 days
+  var nov1        = new Date(pickupYear, 10, 1);
+  var nov1DOW     = nov1.getDay();
+  var daysToThurs = (4 - nov1DOW + 7) % 7;      // days from Nov 1 to first Thursday
+  var thanksgiving = new Date(pickupYear, 10, 1 + daysToThurs + 21); // +21 = 3 more weeks
+  var isThanksgiving = (nextPickup.getTime() === thanksgiving.getTime());
+
+  var holidayNotice = '';
+  if ((isChristmas || isThanksgiving) && pickupDOW >= 1 && pickupDOW <= 5) {
+    // Bump to Saturday of that week
+    var daysToSat = 6 - pickupDOW;
+    nextPickup    = new Date(nextPickup.getTime() + daysToSat * msPerDay);
+    holidayNotice = ' (makeup — holiday week)';
+  }
+
+  // ── Format result ────────────────────────────────────────────────────────────
   var daysAway = Math.round((nextPickup.getTime() - today.getTime()) / msPerDay);
   var label = DAY_NAMES[nextPickup.getDay()] + ', ' +
               MON_NAMES[nextPickup.getMonth()] + ' ' + nextPickup.getDate();
 
   if (daysAway === 0) {
-    return 'Today — ' + label;
+    return 'Today — ' + label + holidayNotice;
   } else if (daysAway === 1) {
-    return 'Tomorrow — ' + label;
+    return 'Tomorrow — ' + label + holidayNotice;
   } else if (daysAway <= 7) {
-    return label + ' (' + daysAway + ' days)';
+    return label + ' (' + daysAway + ' days)' + holidayNotice;
   } else {
-    return label;  // NOTE: no unary + here — that was the bug from before
+    return label + holidayNotice;  // NOTE: no unary + before label — that was the bug from before
   }
 }
 
