@@ -173,6 +173,31 @@
       50%  { content: '..'; }
       75%  { content: '...'; }
     }
+
+    .sv-wrap {
+      display: none;
+      margin-top: 10px;
+      border: 1px solid #ddddd8;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #eee;
+    }
+
+    .sv-wrap iframe {
+      display: block;
+      width: 100%;
+      height: 220px;
+      border: none;
+    }
+
+    .sv-label {
+      font-size: 11px;
+      color: #999;
+      padding: 6px 10px;
+      border-top: 1px solid #ebebeb;
+      background: #fafaf8;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -201,6 +226,10 @@
       </div>
     </div>
     <div class="info-cards" id="infoCards"></div>
+    <div class="sv-wrap" id="svWrap">
+      <iframe id="svFrame" src="" allowfullscreen></iframe>
+      <div class="sv-label">Google Street View — approximate location</div>
+    </div>
   </div>
 
 </div>
@@ -432,6 +461,8 @@ function doSearch() {
   wrap.style.display = 'block';
   showBanner('loading', 'Searching');
   document.getElementById('infoCards').innerHTML = '';
+  document.getElementById('svWrap').style.display = 'none';
+  document.getElementById('svFrame').src = '';
 
   var normalized = normalizeAddress(raw);
   var escaped    = normalized.replace(/'/g, "''");
@@ -458,6 +489,14 @@ function doSearch() {
 
       var geom = json.features[0].geometry;
       var sr   = json.spatialReference || { wkid: 4326 };
+
+      // Street View — geom is now in WGS84 (outSR=4326)
+      var lat = geom.y;
+      var lng = geom.x;
+      var svUrl = 'https://www.google.com/maps?q=&layer=c&cbll=' + lat + ',' + lng + '&output=embed';
+      var svWrap = document.getElementById('svWrap');
+      document.getElementById('svFrame').src = svUrl;
+      svWrap.style.display = 'block';
 
       // Show loading placeholders for each service
       renderCards(POLYGON_LAYERS.map(function(l) {
