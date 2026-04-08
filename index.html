@@ -173,31 +173,6 @@
       50%  { content: '..'; }
       75%  { content: '...'; }
     }
-
-    .sv-wrap {
-      display: none;
-      margin-top: 10px;
-      border: 1px solid #ddddd8;
-      border-radius: 8px;
-      overflow: hidden;
-      background: #eee;
-    }
-
-    .sv-wrap iframe {
-      display: block;
-      width: 100%;
-      height: 220px;
-      border: none;
-    }
-
-    .sv-label {
-      font-size: 11px;
-      color: #999;
-      padding: 6px 10px;
-      border-top: 1px solid #ebebeb;
-      background: #fafaf8;
-      text-align: center;
-    }
   </style>
 </head>
 <body>
@@ -226,10 +201,7 @@
       </div>
     </div>
     <div class="info-cards" id="infoCards"></div>
-    <div class="sv-wrap" id="svWrap">
-      <iframe id="svFrame" src="" allowfullscreen></iframe>
-      <div class="sv-label">Google Street View — approximate location</div>
-    </div>
+  </div>
   </div>
 
 </div>
@@ -255,6 +227,14 @@ var POLYGON_LAYERS = [
     icon:  '♻️'
   },
   {
+    url:   'https://pwgis.chattanooga.gov/server/rest/services/CHCRPA/Zoning/FeatureServer/0',
+    type:  'simple',
+    field: 'Zone',
+    label: 'Zoning classification',
+    icon:  '🏘️',
+    format: function(val) { return val || 'Not found'; }
+  },
+  {
     url:    'https://pwgis.chattanooga.gov/server/rest/services/Administrative_Areas/CouncilDistricts/FeatureServer/0',
     type:   'multi',
     fields: ['COUNCIL', 'REP_COUNCIL'],
@@ -268,6 +248,30 @@ var POLYGON_LAYERS = [
       if (rep)             return rep;
       return 'Not found';
     }
+  },
+  {
+    url:   'https://services2.arcgis.com/OIAIimblRxPs0xxc/arcgis/rest/services/School_Data/FeatureServer/1',
+    type:  'simple',
+    field: 'FullName',
+    label: 'Elementary school',
+    icon:  '🎒',
+    format: function(val) { return val || 'Not found'; }
+  },
+  {
+    url:   'https://services2.arcgis.com/OIAIimblRxPs0xxc/arcgis/rest/services/School_Data/FeatureServer/2',
+    type:  'simple',
+    field: 'FullName',
+    label: 'Middle school',
+    icon:  '📚',
+    format: function(val) { return val || 'Not found'; }
+  },
+  {
+    url:   'https://services2.arcgis.com/OIAIimblRxPs0xxc/arcgis/rest/services/School_Data/FeatureServer/3',
+    type:  'simple',
+    field: 'FullName',
+    label: 'High school',
+    icon:  '🎓',
+    format: function(val) { return val || 'Not found'; }
   }
 ];
 // ─────────────────────────────────────────────────────────────────────────────
@@ -461,8 +465,7 @@ function doSearch() {
   wrap.style.display = 'block';
   showBanner('loading', 'Searching');
   document.getElementById('infoCards').innerHTML = '';
-  document.getElementById('svWrap').style.display = 'none';
-  document.getElementById('svFrame').src = '';
+
 
   var normalized = normalizeAddress(raw);
   var escaped    = normalized.replace(/'/g, "''");
@@ -489,37 +492,6 @@ function doSearch() {
 
       var geom = json.features[0].geometry;
       var sr   = json.spatialReference || { wkid: 4326 };
-
-      // Street View — geocode via Nominatim to get lat/lng for cbll parameter
-      var svWrap = document.getElementById('svWrap');
-      var svFrame = document.getElementById('svFrame');
-      svWrap.style.display = 'block';
-      svFrame.src = '';  // clear while geocoding
-
-      var nominatimUrl = 'https://nominatim.openstreetmap.org/search'
-        + '?q=' + encodeURIComponent(normalized + ', Chattanooga, TN, USA')
-        + '&format=json&limit=1';
-
-      fetch(nominatimUrl, { headers: { 'Accept-Language': 'en' } })
-        .then(function(r) { return r.json(); })
-        .then(function(results) {
-          if (results && results.length > 0) {
-            var lat = parseFloat(results[0].lat);
-            var lng = parseFloat(results[0].lon);
-            svFrame.src = 'https://www.google.com/maps?cbll=' + lat + ',' + lng
-              + '&layer=c&output=embed';
-          } else {
-            // Fallback: show map view if no geocode result
-            svFrame.src = 'https://www.google.com/maps?q='
-              + encodeURIComponent(normalized + ', Chattanooga, TN')
-              + '&output=embed';
-          }
-        })
-        .catch(function() {
-          svFrame.src = 'https://www.google.com/maps?q='
-            + encodeURIComponent(normalized + ', Chattanooga, TN')
-            + '&output=embed';
-        });
 
       // Show loading placeholders for each service
       renderCards(POLYGON_LAYERS.map(function(l) {
@@ -575,7 +547,8 @@ function doSearch() {
             } else if (layer.type === 'multi') {
               value = layer.format(attr);
             } else {
-              value = attr[layer.field] || 'Not found';
+              var raw = attr[layer.field];
+              value = (raw !== null && raw !== undefined) ? String(raw) : 'Not found';
             }
           } else if (err2) {
             value = 'Service unavailable';
