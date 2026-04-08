@@ -29,6 +29,84 @@
       max-width: 560px;
     }
 
+    /* ── Mobile ─────────────────────────────────────────────────────────────── */
+    @media (max-width: 480px) {
+      body {
+        padding: 0;
+        background: #ffffff;
+        align-items: stretch;
+      }
+
+      .app {
+        border: none;
+        border-radius: 0;
+        padding: 1rem;
+        min-height: 100vh;
+        max-width: 100%;
+      }
+
+      .app-header {
+        padding-bottom: 1rem;
+        margin-bottom: 1rem;
+      }
+
+      .app-logo {
+        width: 44px;
+        height: 44px;
+      }
+
+      .app-title {
+        font-size: 15px;
+      }
+
+      .app-subtitle {
+        font-size: 11.5px;
+      }
+
+      .search-row {
+        gap: 6px;
+      }
+
+      .search-row input {
+        font-size: 16px; /* prevents iOS auto-zoom on focus */
+        height: 42px;
+      }
+
+      .btn {
+        height: 42px;
+        padding: 0 14px;
+        font-size: 14px;
+      }
+
+      .result-banner {
+        padding: 0.875rem 1rem;
+      }
+
+      .banner-headline {
+        font-size: 13.5px;
+      }
+
+      .info-cards {
+        gap: 6px;
+      }
+
+      .info-card {
+        padding: 0.7rem 0.875rem;
+      }
+
+      .info-card-icon {
+        font-size: 16px;
+      }
+
+      .info-card-label {
+        font-size: 10px;
+      }
+
+      .info-card-value {
+        font-size: 13px;
+      }
+    }
+
     .app-header {
       display: flex;
       align-items: center;
