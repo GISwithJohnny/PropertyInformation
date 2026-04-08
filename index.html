@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Address Point Lookup</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      color: #1a1a1a;
+      background: #f5f5f2;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+
+    .app {
+      background: #ffffff;
+      border: 1px solid #ddddd8;
+      border-radius: 10px;
+      padding: 1.75rem;
+      width: 100%;
+      max-width: 560px;
+    }
+
+    .app-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 1.25rem;
+      padding-bottom: 1.25rem;
+      border-bottom: 1px solid #ebebeb;
+    }
+
+    .app-logo {
+      width: 56px;
+      height: 56px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+
+    .app-header-text { flex: 1; }
+
+    .app-title {
+      font-size: 17px;
+      font-weight: 600;
+      color: #1a1a1a;
+      line-height: 1.3;
+    }
+
+    .app-subtitle {
+      font-size: 12.5px;
+      color: #888;
+      margin-top: 2px;
+    }
+
+    .search-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 1.25rem;
+    }
+
+    .search-row input {
+      flex: 1;
+      height: 38px;
+      padding: 0 12px;
+      border: 1px solid #ddddd8;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+      color: #1a1a1a;
+      background: #fafaf8;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .search-row input:focus {
+      border-color: #378ADD;
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(55, 138, 221, 0.12);
+    }
+
+    .search-row input::placeholder { color: #aaa; }
+
+    .btn {
+      height: 38px;
+      padding: 0 18px;
+      background: #1a7fb5;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+
+    .btn:hover { background: #155f88; }
+    .btn:active { background: #0f4a6b; }
+
+    /* Result area */
+    .result-wrap { display: none; }
+
+    .result-banner {
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .result-banner.match    { border: 1px solid #a8d07a; background: #f4faed; }
+    .result-banner.no-match { border: 1px solid #f0c8c8; background: #fdf3f3; }
+    .result-banner.error    { border: 1px solid #e8dfc0; background: #fdfaf0; }
+    .result-banner.loading  { border: 1px solid #ddddd8; background: #fafaf8; }
+
+    .banner-icon { font-size: 20px; line-height: 1; flex-shrink: 0; margin-top: 2px; }
+
+    .banner-text { flex: 1; }
+
+    .banner-headline {
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+
+    .result-banner.match    .banner-headline { color: #2d5a0e; }
+    .result-banner.no-match .banner-headline { color: #8b1f1f; }
+    .result-banner.error    .banner-headline { color: #7a6010; }
+    .result-banner.loading  .banner-headline { color: #555; }
+
+    .banner-sub {
+      font-size: 12.5px;
+      margin-top: 3px;
+    }
+
+    .result-banner.match    .banner-sub { color: #4a8020; }
+    .result-banner.no-match .banner-sub { color: #a85050; }
+    .result-banner.error    .banner-sub { color: #8a7020; }
+    .result-banner.loading  .banner-sub { color: #888; }
+
+    /* Info rows */
+    .info-cards { display: flex; flex-direction: column; gap: 8px; }
+
+    .info-card {
+      border: 1px solid #ddddd8;
+      border-radius: 8px;
+      padding: 0.75rem 1.125rem;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #fafaf8;
+    }
+
+    .info-card-icon { font-size: 18px; flex-shrink: 0; }
+
+    .info-card-body { flex: 1; }
+
+    .info-card-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: #999;
+      margin-bottom: 1px;
+    }
+
+    .info-card-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+
+    .info-card.loading .info-card-value {
+      color: #bbb;
+      font-weight: 400;
+    }
+
+    .loading-dots::after {
+      content: '';
+      animation: dots 1.2s steps(4, end) infinite;
+    }
+
+    @keyframes dots {
+      0%   { content: ''; }
+      25%  { content: '.'; }
+      50%  { content: '..'; }
+      75%  { content: '...'; }
+      100% { content: ''; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <div class="app-header">
+    <img class="app-logo" src="https://rok-chattn-web.s3.us-east-1.amazonaws.com/CityLogosSeals/1.%20full%20color%20badge.png" alt="City of Chattanooga" />
+    <div class="app-header-text">
+      <div class="app-title">Address Lookup</div>
+      <div class="app-subtitle">Find city services for your address</div>
+    </div>
+  </div>
+
+  <div class="search-row">
+    <input type="text" id="addressInput" placeholder="e.g. 100 East Main St" />
+    <button class="btn" onclick="doSearch()">Search</button>
+  </div>
+
+  <div class="result-wrap" id="resultWrap">
+    <div class="result-banner" id="resultBanner">
+      <div class="banner-icon" id="bannerIcon"></div>
+      <div class="banner-text">
+        <div class="banner-headline" id="bannerHeadline"></div>
+        <div class="banner-sub" id="bannerSub"></div>
+      </div>
+    </div>
+    <div class="info-cards" id="infoCards"></div>
+  </div>
+
+</div>
+
+<script>
+  // ── Layer config ─────────────────────────────────────────────────────────────
+  var ADDRESS_LAYER = 'https://pwgis.chattanooga.gov/arcgis/rest/services/Misc/Addressing_FeatService/FeatureServer/0';
+  var ADDRESS_FIELD = 'ADDRESS';
+
+  var POLYGON_LAYERS = [
+    {
+      url:   'https://services2.arcgis.com/OIAIimblRxPs0xxc/arcgis/rest/services/Garbage_Service_Areas/FeatureServer/0',
+      field: 'Service_Da',
+      label: 'Garbage pickup day',
+      icon:  '🗑️'
+    }
+    // Add more layers here, e.g.:
+    // { url: '...', field: '...', label: 'Recycling pickup day', icon: '♻️' },
+    // { url: '...', field: '...', label: 'City council district', icon: '🏛️' }
+  ];
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  var _cbIndex = 0;
+
+  var REPLACEMENTS = [
+    [/\bnorth\b/g,     'N'],    [/\bsouth\b/g,     'S'],
+    [/\beast\b/g,      'E'],    [/\bwest\b/g,       'W'],
+    [/\bnortheast\b/g, 'NE'],   [/\bnorthwest\b/g,  'NW'],
+    [/\bsoutheast\b/g, 'SE'],   [/\bsouthwest\b/g,  'SW'],
+    [/\bstreet\b/g,    'ST'],   [/\bavenue\b/g,     'AVE'],
+    [/\bboulevard\b/g, 'BLVD'], [/\bdrive\b/g,      'DR'],
+    [/\broad\b/g,      'RD'],   [/\blane\b/g,       'LN'],
+    [/\bcourt\b/g,     'CT'],   [/\bcircle\b/g,     'CIR'],
+    [/\bplace\b/g,     'PL'],   [/\bparkway\b/g,    'PKWY'],
+    [/\bterrace\b/g,   'TER'],  [/\bhighway\b/g,    'HWY'],
+    [/\btrail\b/g,     'TRL'],  [/\bapartment\b/g,  'APT'],
+    [/\bsuite\b/g,     'STE'],  [/[.,#]/g,          ''],
+    [/\s{2,}/g,        ' ']
+  ];
+
+  function normalizeAddress(input) {
+    var s = input.trim();
+    for (var i = 0; i < REPLACEMENTS.length; i++) {
+      s = s.replace(REPLACEMENTS[i][0], REPLACEMENTS[i][1]);
+    }
+    return s.trim().toUpperCase();
+  }
+
+  document.getElementById('addressInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') doSearch();
+  });
+
+  // ── JSONP helper ─────────────────────────────────────────────────────────────
+  function jsonp(url, params, callback) {
+    var cbName = '__agscb' + (++_cbIndex);
+    var timeout;
+
+    window[cbName] = function(data) {
+      clearTimeout(timeout);
+      delete window[cbName];
+      if (script.parentNode) document.head.removeChild(script);
+      callback(null, data);
+    };
+
+    params.callback = cbName;
+    params.f = 'json';
+
+    var qs = Object.keys(params).map(function(k) {
+      return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+    }).join('&');
+
+    var script = document.createElement('script');
+    script.src = url + '?' + qs;
+    script.onerror = function() {
+      clearTimeout(timeout);
+      delete window[cbName];
+      if (script.parentNode) document.head.removeChild(script);
+      callback(new Error('Script load failed.'));
+    };
+
+    timeout = setTimeout(function() {
+      delete window[cbName];
+      if (script.parentNode) document.head.removeChild(script);
+      callback(new Error('Request timed out.'));
+    }, 10000);
+
+    document.head.appendChild(script);
+  }
+
+  // ── UI helpers ───────────────────────────────────────────────────────────────
+  function showBanner(type, headline, sub) {
+    var banner = document.getElementById('resultBanner');
+    banner.className = 'result-banner ' + type;
+    var icons = { match: '✓', 'no-match': '✕', error: '⚠', loading: '' };
+    document.getElementById('bannerIcon').textContent = icons[type] || '';
+    var hl = document.getElementById('bannerHeadline');
+    hl.innerHTML = type === 'loading'
+      ? headline + '<span class="loading-dots"></span>'
+      : headline;
+    document.getElementById('bannerSub').textContent = sub || '';
+  }
+
+  function showInfoCards(layers) {
+    var container = document.getElementById('infoCards');
+    container.innerHTML = '';
+    layers.forEach(function(layer) {
+      var card = document.createElement('div');
+      card.className = 'info-card' + (layer.loading ? ' loading' : '');
+      card.innerHTML =
+        '<div class="info-card-icon">' + layer.icon + '</div>' +
+        '<div class="info-card-body">' +
+          '<div class="info-card-label">' + layer.label + '</div>' +
+          '<div class="info-card-value">' + layer.value + '</div>' +
+        '</div>';
+      container.appendChild(card);
+    });
+  }
+
+  // ── Main search ──────────────────────────────────────────────────────────────
+  function doSearch() {
+    var raw = document.getElementById('addressInput').value.trim();
+    if (!raw) return;
+
+    var wrap = document.getElementById('resultWrap');
+    wrap.style.display = 'block';
+    showBanner('loading', 'Searching');
+    document.getElementById('infoCards').innerHTML = '';
+
+    var normalized = normalizeAddress(raw);
+    var escaped    = normalized.replace(/'/g, "''");
+
+    // Step 1: find address point, return geometry
+    var exactWhere = ADDRESS_FIELD + " = '" + escaped + "'";
+
+    function tryAddressQuery(where, isFallback) {
+      jsonp(ADDRESS_LAYER + '/query', {
+        where: where,
+        outFields: ADDRESS_FIELD,
+        returnGeometry: 'true',
+        resultRecordCount: '1'
+      }, function(err, json) {
+        if (err || json.error || !json.features || json.features.length === 0) {
+          if (!isFallback) {
+            // Try LIKE fallback
+            var parts = escaped.split(' ');
+            var likePrefix = parts.slice(0, Math.min(3, parts.length)).join(' ');
+            tryAddressQuery(ADDRESS_FIELD + " LIKE '" + likePrefix + "%'", true);
+          } else {
+            showBanner('no-match',
+              'We could not find a matching address within city limits.',
+              'Double-check the spelling or try a nearby address. If you believe this is an error, please contact us.'
+            );
+          }
+          return;
+        }
+
+        // Address found — show city limits banner
+        showBanner('match', 'Yes, this address is within Chattanooga city limits.', '');
+
+        var geom = json.features[0].geometry;
+        var sr   = json.spatialReference || { wkid: 4326 };
+
+        // Show loading state for each service card
+        showInfoCards(POLYGON_LAYERS.map(function(l) {
+          return { icon: l.icon, label: l.label, value: 'Looking up\u2026', loading: true };
+        }));
+
+        // Step 2: spatially query each polygon layer
+        var results = new Array(POLYGON_LAYERS.length);
+        var pending = POLYGON_LAYERS.length;
+
+        POLYGON_LAYERS.forEach(function(layer, idx) {
+          var pointJson = JSON.stringify({
+            x: geom.x,
+            y: geom.y,
+            spatialReference: sr
+          });
+
+          jsonp(layer.url + '/query', {
+            geometry:        pointJson,
+            geometryType:    'esriGeometryPoint',
+            spatialRel:      'esriSpatialRelIntersects',
+            outFields:       layer.field,
+            returnGeometry:  'false',
+            resultRecordCount: '1'
+          }, function(err2, json2) {
+            var value = 'Not found';
+            if (!err2 && !json2.error && json2.features && json2.features.length > 0) {
+              var attr = json2.features[0].attributes;
+              value = attr[layer.field] || 'Not found';
+            }
+            results[idx] = { icon: layer.icon, label: layer.label, value: value, loading: false };
+            pending--;
+            if (pending === 0) {
+              showInfoCards(results);
+            }
+          });
+        });
+      });
+    }
+
+    tryAddressQuery(exactWhere, false);
+  }
+</script>
+</body>
+</html>
